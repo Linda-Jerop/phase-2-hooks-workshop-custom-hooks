@@ -5,30 +5,64 @@ import { useEffect, useState } from "react";
   - key: the key on localStorage where we are saving this data
   - initialValue: the initial value of state
 */
-export function useLocalStorage(key, initialValue) {
+export function useLocalStorage(key, initialValue = null) {
   /* 
     ✅ in this hook, use the useState hook. For the initial value for state:
     use the value saved in localStorage OR the initialValue from the function parameters 
   */
+  const [state, setState] = useState(() => {
+    const savedValue = localStorage.getItem(key);
+    if (savedValue !== null) {
+      try {
+        return JSON.parse(savedValue);
+      } catch {
+        return savedValue;
+      }
+    }
+    return initialValue;
+  });
 
   /* 
    ✅ write a useEffect hook 
    in the useEffect, when state is updated, save the state to localStorage
    don't forget the dependencies array!
   */
-  useEffect(() => {});
+  useEffect(() => {
+    const valueToStore = typeof state === 'object' ? JSON.stringify(state) : state;
+    localStorage.setItem(key, valueToStore);
+  }, [key, state]);
+
+  // Handle storage events for cross-tab synchronization
+  useEffect(() => {
+    function handleStorageChange(event) {
+      if (event.key === key) {
+        const newValue = localStorage.getItem(key);
+        if (newValue !== null) {
+          try {
+            setState(JSON.parse(newValue));
+          } catch {
+            setState(newValue);
+          }
+        }
+      }
+    }
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [key]);
 
   /* 
    ✅ return the same interface as useState:
    an array with state and a setState function
   */
   // 👀 return [state, setState]
+  return [state, setState];
 }
 
 function Form() {
   // ✅ after implementing the useLocalStorage hook, replace useState with useLocalStorage
   // don't forget to pass in both arguments (a key and an initialValue)
-  const [name, setName] = useState("");
+  const [name, setName] = useLocalStorage("name", "");
   console.log(name);
 
   return (
@@ -42,7 +76,7 @@ function Form() {
 
 function FormWithObject() {
   // 🤓 save me for the bonus! when you're ready, update this useState to use your useLocalStorage hook instead
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useLocalStorage("formData", {
     title: "",
     content: "",
   });
